@@ -55,7 +55,7 @@ st.write("""
     # Lets Explore different classification with Iris dataset
 """)
 # function to get dataset
-df = pd.read_csv('iris.csv')
+df = pd.read_csv('Iris.csv')
 st.write(df)
 
 
