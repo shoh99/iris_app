@@ -1,5 +1,8 @@
 # import required libraries
 
+from numpy.core.fromnumeric import mean
+from scipy.sparse.construct import random
+from sklearn import model_selection
 import streamlit as st
 import numpy as np
 import seaborn as sns
@@ -25,21 +28,14 @@ from PIL import Image
 
 
 SCORE = {
-    'SVM': None,
-    'KNN': None,
-    'GausianNB': None,
-    'LRC': None,
-    'DecisionTree': None
+    'SVM': [],
+    'KNN': [],
+    'GausianNB': [],
+    'LRC': [],
+    'DecisionTree': []
 }
-
-TIME = {
-    'SVM_time': [0.0, 0.0],
-    'KNN_time': [0.0, 0.0],
-    'GausianNB_time': [0.0, 0.0],
-    'LRC_time': [0.0, 0.0],
-    'DecisionTree_time': [0.0, 0.0]
-}
-
+NAME = ['KNN', 'GausianNB', 'SVM', 'LRC',   'DecisionTree']
+RESULTS = []
 # disable warnings
 st.set_option('deprecation.showPyplotGlobalUse', False)
 
@@ -59,7 +55,7 @@ st.write("""
     # Lets Explore different classification with Iris dataset
 """)
 # function to get dataset
-df = pd.read_csv('Iris.csv')
+df = pd.read_csv('dataset\iris.csv')
 st.write(df)
 
 
@@ -93,6 +89,13 @@ def main():
             ax = sns.pairplot(df, hue='Species')
             st.pyplot()
 
+# Vusualize 3d plot
+        if st.checkbox('Plot 3D plot'):
+
+            fig = px.scatter_3d(df, x="PetalLengthCm", y="PetalWidthCm", z="SepalLengthCm", size="SepalWidthCm",
+                                symbol="Species", color='Species', color_discrete_map={"Joly": "blue", "Bergeron": "violet", "Coderre": "pink"})
+            fig.show()
+            st.pyplot()
 
 # heat map
         if st.checkbox('Display heat map'):
@@ -113,86 +116,78 @@ def main():
         # K
         if st.checkbox('KNN'):
             k = st.slider('K', 1, 15)
-
             knn = KNeighborsClassifier(n_neighbors=k)
-            start_train = time.time()
-            knn.fit(X_train, y_train)
-            end_train = time.time()
-            start_test = time.time()
-            knn_pred = knn.predict(X_test)
-            end_test = time.time()
-            st.write(knn_pred)
-            accuracy_knn = accuracy_score(y_test, knn_pred)
+            kfold_knn = model_selection.KFold(n_splits=10, random_state=7)
+            knn_result = model_selection.cross_val_score(
+                knn, X, y, cv=kfold_knn, scoring='accuracy')
+
             st.write('classifier name: K nearest neighbor algorithm')
-            st.write('Accuracy score for your model is: ', accuracy_knn)
-            st.write(
-                f"Train_time: {end_train-start_train}, Test_time: {end_test-start_test}")
-            SCORE['KNN'] = accuracy_knn
-            TIME['KNN_time'] = [end_train-start_train, end_test-start_test]
+            st.write('Accuracy score for your model is: ', knn_result.mean())
+            SCORE['KNN'].append(knn_result)
+            RESULTS.append(knn_result)
+
+            plt.title('Accuracy score for KNN')
+            plt.boxplot(SCORE['KNN'])
+            plt.xlabel('KNN')
+            st.pyplot()
+
         # Gausian Naive Baise Algorithm
         if st.checkbox('GausianNB'):
             gnb = GaussianNB()
             # start train
-            gnb_train = time.time()
-            gnb.fit(X_train, y_train)
-            gnb_train_end = time.time()
-            # start test
-            gnb_test = time.time()
-            gnb_pred = gnb.predict(X_test)
-            gnb_test_end = time.time()
-            st.write(gnb_pred)
-            accuracy_gnb = accuracy_score(y_test, gnb_pred)
+            kfold_gnb = model_selection.KFold(n_splits=10, random_state=7)
+            gnb_result = model_selection.cross_val_score(
+                gnb, X, y, cv=kfold_gnb, scoring='accuracy'
+            )
+            SCORE['GausianNB'].append(gnb_result)
+            RESULTS.append(gnb_result)
             st.write('classifier name: Gaussian Naive Baise algorithm')
-            st.write('Accuracy score for your model is: ', accuracy_gnb)
-            st.write(
-                f"Train_time: {gnb_test_end-gnb_train}, Test_time: {gnb_test_end-gnb_test}")
-            SCORE['GausianNB'] = accuracy_gnb
-            TIME['GausianNB_time'] = [
-                gnb_test_end-gnb_train, gnb_test_end-gnb_test]
+            st.write('Accuracy score for your model is: ', gnb_result.mean())
+            # plotbox
+            plt.title('Accuracy score for Gaussian Naive Baise')
+            plt.boxplot(SCORE['GausianNB'])
+            plt.xlabel('GausianNB')
+            st.pyplot()
 
         if st.checkbox('SVC'):
             c = st.slider('C', 0.01, 15.0)
-            g = st.slider('G', 0.01, 15.0)
+            # g = st.slider('G', 0.01, 15.0)
             # support vector classifier
-            svc = SVC(C=c, gamma=g)
-            # start train
-            svc_train = time.time()
-            svc.fit(X_train, y_train)
-            svc_train_end = time.time()
-            # start test
-            svc_test = time.time()
-            svc_pred = svc.predict(X_test)
-            # end_test
-            svc_test_end = time.time()
-            st.write(svc_pred)
-            accuracy_svc = accuracy_score(y_test, svc_pred)
+            svc = SVC(C=c, gamma='scale')
+
+            kfold_svc = model_selection.KFold(n_splits=10, random_state=7)
+            svc_result = model_selection.cross_val_score(
+                svc, X, y, cv=kfold_svc, scoring='accuracy'
+            )
+            SCORE['SVM'].append(svc_result)
+            RESULTS.append(svc_result)
             st.write('classifier name: Support Vector Machine')
-            st.write('Accuracy score for your model is: ', accuracy_svc)
-            st.write(
-                f"Train_time: {svc_train_end-svc_train}, Test_time: {svc_test_end-svc_test}")
-            SCORE['SVM'] = accuracy_svc
-            TIME['SVM_time'] = [svc_train_end-svc_train, svc_test_end-svc_test]
+            st.write('Accuracy score for your model is: ', svc_result.mean())
+
+            # plotbox
+            plt.title('Accuracy score for Support Vector Classifier')
+            plt.boxplot(SCORE['SVM'])
+            plt.xlabel('SVM')
+            st.pyplot()
         # Logistc Regression
         if st.checkbox('Logistic Regression'):
             lrc = LogisticRegression()
-            # start train
-            lrc_train = time.time()
-            lrc.fit(X_train, y_train)
-            # end train
-            lrc_train_end = time.time()
-            # start test
-            lrc_test = time.time()
-            pred = lrc.predict(X_test)
-            # end test
-            lrc_test_end = time.time()
-            st.write(pred)
-            accuracy_lrc = accuracy_score(pred, y_test)
+
+            kfold_lrc = model_selection.KFold(n_splits=10, random_state=7)
+            lrc_result = model_selection.cross_val_score(
+                lrc, X, y, cv=kfold_lrc, scoring='accuracy'
+            )
+            SCORE['LRC'].append(lrc_result)
+            RESULTS.append(lrc_result)
+
             st.write('classifier name: Logistic Regresssion')
-            st.write('Accuracy score for your model is: ', accuracy_lrc)
-            st.write(
-                f"Train_time: {lrc_train_end-lrc_train}, Test_time: {lrc_test_end-lrc_test}")
-            SCORE['LRC'] = accuracy_lrc
-            TIME['LRC_time'] = [lrc_train_end-lrc_train, lrc_test_end-lrc_test]
+            st.write('Accuracy score for your model is: ', lrc_result.mean())
+            # plotbox
+            plt.title('Accuracy score for Logistic Regression')
+            plt.boxplot(SCORE['LRC'])
+            plt.xlabel('LRC')
+            st.pyplot()
+
         # Decision tree classifier
         if st.checkbox('Decision Tree Classifier'):
             depth = st.slider('max_depth', 1, 15)
@@ -200,42 +195,46 @@ def main():
 
             mad_dt = DecisionTreeClassifier(
                 max_depth=depth, random_state=state)
-            # start train
-            mad_dt_train = time.time()
-            mad_dt.fit(X_train, y_train)
-            # end train
-            mad_dt_train_end = time.time()
-            # start test
-            mad_dt_test = time.time()
-            mad_dt_pred = mad_dt.predict(X_test)
-            # end test
-            mad_dt_test_end = time.time()
-            st.write(mad_dt_pred)
-            accuracy_mad_dt = accuracy_score(y_test, mad_dt_pred)
-            st.write('classifier name: Decision Tree Algorithm')
-            st.write('Accuracy score for your model is: ', accuracy_mad_dt)
-            st.write(
-                f"Train_time: {mad_dt_train_end-mad_dt_train}, Test_time: {mad_dt_test_end-mad_dt_test}")
-            SCORE['DecisionTree'] = accuracy_mad_dt
-            TIME['DecisionTree_time'] = [mad_dt_train_end -
-                                         mad_dt_train, mad_dt_test_end-mad_dt_test]
 
+            kfold_dt = model_selection.KFold(n_splits=10, random_state=7)
+            dt_result = model_selection.cross_val_score(
+                mad_dt, X, y, cv=kfold_dt, scoring='accuracy'
+            )
+            SCORE['DecisionTree'].append(dt_result)
+            RESULTS.append(dt_result)
+            st.write('classifier name: Decision Tree Algorithm')
+            st.write('Accuracy score for your model is: ', dt_result.mean())
+
+            # plotbox
+            plt.title('Accuracy score for Decision Tree')
+            plt.boxplot(SCORE['DecisionTree'])
+            plt.xlabel('Decision Tree')
+            st.pyplot()
     # RESULT
     if st.sidebar.checkbox('Results'):
         st.subheader('Accuracy scores of your models')
         if not SCORE:
             st.write('No model trained')
         else:
-            st.write('SVC accuracy score:{}, Train time: {}, Test time: {} '.format(
-                SCORE['SVM'], TIME['SVM_time'][0], TIME['SVM_time'][1]))
-            st.write('KNN accuracy score: {}, Train time: {}, Test time: {}'.format(
-                SCORE['KNN'], TIME['KNN_time'][0], TIME['KNN_time'][1]))
-            st.write('Gaussian accuracy score:{}, Train time: {}, Test time: {} '.format(
-                SCORE['GausianNB'], TIME['GausianNB_time'][0], TIME['GausianNB_time'][1]))
-            st.write('Logistic regression accuracy score:{}, Train time: {}, Test time: {} '.format(
-                SCORE['LRC'], TIME['LRC_time'][0], TIME['LRC_time'][1]))
-            st.write('Decision Tree Algorithm:{}, Train time: {}, Test time: {} '.format(
-                SCORE['DecisionTree'], TIME['DecisionTree_time'][0], TIME['DecisionTree_time'][1]))
+            st.write('SVC accuracy score: {} '.format(
+                round(SCORE['SVM'][0].mean(), 2)))
+            st.write('KNN accuracy score: {} '.format(
+                round(SCORE['KNN'][0].mean(), 2)))
+            st.write('Gaussian accuracy score: {} '.format(
+                round(SCORE['GausianNB'][0].mean(), 2)))
+            st.write('Logistic regression accuracy score:{}'.format(
+                round(SCORE['LRC'][0].mean(), 2)))
+            st.write('Decision Tree Algorithm: {} '.format(
+                round(SCORE['DecisionTree'][0].mean(), 2)))
+
+        st.subheader('The overall Boxplot of the result')
+
+        fig = plt.figure()
+        fig.suptitle('Algorithm Comparision')
+        ax = fig.add_subplot(111)
+        plt.boxplot(RESULTS)
+        ax.set_xticklabels(NAME)
+        st.pyplot()
 
     if st.sidebar.checkbox('About'):
         st.subheader('About this app')
